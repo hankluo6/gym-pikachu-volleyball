@@ -39,7 +39,12 @@ class PikachuVolleyballEnv(gym.Env):
         return self.engine.render(self.render_mode)
 
     def step(self, action, other_action = None):
-        converted_action = (convert_to_user_input(other_action, 0), convert_to_user_input(action, 1))
+        if other_action == None:
+            other_action = self.engine.let_computer_decide_user_input(player_id=0)
+            converted_action = (other_action, convert_to_user_input(action, 1))
+        else:
+            converted_action = (convert_to_user_input(other_action, 0), convert_to_user_input(action, 1))
+        
         is_ball_touching_ground = self.engine.step(converted_action)
         self.engine.viewer.update()
         obs = self.engine.get_obs(self.pixel_mode)

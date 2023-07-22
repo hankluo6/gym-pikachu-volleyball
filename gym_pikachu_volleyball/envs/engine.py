@@ -22,6 +22,7 @@ class Engine:
                 self.__process_collision_between_ball_and_world_and_set_ball_position();
 
         for i in range(2):
+            self.__calculate_expected_landing_point_x_for(self.ball)
             self.__process_player_movement_and_set_player_position(i, user_inputs[i])
 
         for i in range(2):
@@ -269,6 +270,149 @@ class Engine:
             self.viewer.render()
         else:
             return self.viewer.get_screen_rgb_array() 
+        
+    def __expected_landing_point_x_when_power_hit(self, userInputXDirection: int, userInputYDirection: int, ball) -> int:
+        copy_ball = CopyBall(ball.x, ball.y, ball.x_velocity, ball.y_velocity)
+        
+        if copy_ball.x < GROUND_HALF_WIDTH:
+            copy_ball.x_velocity = (abs(userInputXDirection) + 1) * 10
+        else:
+            copy_ball.x_velocity = -(abs(userInputXDirection) + 1) * 10
+
+        copy_ball.y_velocity = abs(copy_ball.y_velocity) * userInputYDirection * 2
+        loopCounter: int = 0
+        while True:
+            loopCounter += 1
+
+            futurecopy_ballX = copy_ball.x + copy_ball.x_velocity
+            if futurecopy_ballX < BALL_RADIUS or futurecopy_ballX > GROUND_WIDTH:
+                copy_ball.x_velocity = -copy_ball.x_velocity
+
+            if copy_ball.y + copy_ball.y_velocity < 0:
+                copy_ball.y_velocity = 1
+
+            if abs(copy_ball.x - GROUND_HALF_WIDTH) < NET_PILLAR_HALF_WIDTH and copy_ball.y > NET_PILLAR_TOP_TOP_Y_COORD:
+                if copy_ball.y <= NET_PILLAR_TOP_BOTTOM_Y_COORD:
+                    if copy_ball.y_velocity > 0:
+                        copy_ball.y_velocity = -copy_ball.y_velocity
+                else:
+                    if copy_ball.x < GROUND_HALF_WIDTH:
+                        copy_ball.x_velocity = -abs(copy_ball.x_velocity)
+                    else:
+                        copy_ball.x_velocity = abs(copy_ball.x_velocity)
+
+            copy_ball.y = copy_ball.y + copy_ball.y_velocity
+
+            if copy_ball.y > BALL_TOUCHING_GROUND_Y_COORD or loopCounter >= 1000:
+                return copy_ball.x
+
+            copy_ball.x = copy_ball.x + copy_ball.x_velocity
+            copy_ball.y_velocity += 1
+ 
+    def __decide_wheter_input_power_hit(self, player, ball, theOtherPlayer, userInput) -> bool:
+        if random.randrange(0, 2) == 0:
+            for xDirection in range(1, -1, -1):
+                for yDirection in range(-1, 2):
+                    expectedLandingPointX = self.__expected_landing_point_x_when_power_hit(xDirection, yDirection, ball)
+                    if (expectedLandingPointX <= int(player.is_player2) * GROUND_HALF_WIDTH or\
+                        expectedLandingPointX >= int(player.is_player2) * GROUND_WIDTH + GROUND_HALF_WIDTH) and\
+                        abs(expectedLandingPointX - theOtherPlayer.x) > PLAYER_LENGTH:
+                            userInput.x_direction = xDirection
+                            userInput.y_direction = yDirection
+                            return True
+        else:
+            for xDirection in range(1, -1, -1):
+                for yDirection in range(1, -2, -1):
+                    expectedLandingPointX = self.__expected_landing_point_x_when_power_hit(xDirection, yDirection, ball)
+                    if (expectedLandingPointX <= int(player.is_player2) * GROUND_HALF_WIDTH or\
+                        expectedLandingPointX >= int(player.is_player2) * GROUND_WIDTH + GROUND_HALF_WIDTH) and\
+                        abs(expectedLandingPointX - theOtherPlayer.x) > PLAYER_LENGTH:
+                            userInput.x_direction = xDirection
+                            userInput.y_direction = yDirection
+                            return True
+        return False
+
+    def let_computer_decide_user_input(self, player_id):
+        ball = self.ball
+        player = self.players[player_id]
+        the_other_player = self.players[1 - player_id]
+        user_input = UserInput()
+
+        virtual_expected_landing_point_x: int = ball.expected_landing_point_x
+
+        if abs(ball.x - player.x) > 100 and abs(ball.x_velocity) < player.computer_boldness + 5:
+            leftBoundary: int = int(player.is_player2) * GROUND_HALF_WIDTH
+            if (ball.expected_landing_point_x <= leftBoundary or\
+            ball.expected_landing_point_x >= GROUND_WIDTH + GROUND_HALF_WIDTH) and\
+            player.computer_where_to_stand_by == 0:
+                virtual_expected_landing_point_x = leftBoundary + GROUND_HALF_WIDTH // 2
+
+        if abs(virtual_expected_landing_point_x - player.x) > player.computer_boldness + 8:
+            user_input.x_direction = 1 if player.x < virtual_expected_landing_point_x else -1
+
+        elif random.randrange(0, 20) == 0:
+            player.computer_where_to_stand_by = random.randrange(0, 2)
+
+        if player.state == 0:
+            if abs(ball.x_velocity) < player.computer_boldness + 3 and\
+            abs(ball.x - player.x) < PLAYER_HALF_LENGTH and\
+            ball.y > -36 and ball.y < 10 * player.computer_boldness + 84 and ball.y_velocity > 0:
+                user_input.y_direction = -1
+            
+            leftBoundary: int = int(player.is_player2) * GROUND_HALF_WIDTH
+            rightBoundary: int = (int(player.is_player2) + 1) * GROUND_HALF_WIDTH
+
+            if ball.expected_landing_point_x > leftBoundary and ball.expected_landing_point_x < rightBoundary and\
+            abs(ball.x - player.x) > player.computer_boldness * 5 + PLAYER_LENGTH and\
+            ball.x > leftBoundary and ball.x < rightBoundary and ball.y > 174:
+                user_input.power_hit = 1
+                user_input.x_direction = 1 if player.x < ball.x else -1
+
+        elif player.state == 1 or player.state == 2:
+            if abs(ball.x - player.x) > 8:
+                user_input.x_direction = 1 if player.x < ball.x else -1
+
+            if abs(ball.x - player.x) < 48 and abs(ball.y - player.y) < 48:
+                willInputPowerHit: bool = self.__decide_wheter_input_power_hit(player, ball, the_other_player, user_input)
+                
+                if willInputPowerHit:
+                    user_input.power_hit = 1
+                    if abs(the_other_player.x - player.x) < 80 and user_input.y_direction != -1:
+                        user_input.y_direction = -1
+        return user_input    
+
+    def __calculate_expected_landing_point_x_for(self, ball):
+        copy_ball = CopyBall(ball.x, ball.y, ball.x_velocity, ball.y_velocity)
+        
+        loopCounter: int = 0
+        while True:
+            loopCounter += 1
+
+            future_copy_ball_x: int = copy_ball.x_velocity + copy_ball.x
+            if future_copy_ball_x < BALL_RADIUS or future_copy_ball_x > GROUND_WIDTH:
+                copy_ball.x_velocity = -copy_ball.x_velocity
+            if copy_ball.y + copy_ball.y_velocity < 0:
+                copy_ball.y_velocity = 1
+
+            if abs(copy_ball.x - GROUND_HALF_WIDTH) < NET_PILLAR_HALF_WIDTH and copy_ball.y > NET_PILLAR_TOP_TOP_Y_COORD:
+                if copy_ball.y < NET_PILLAR_TOP_BOTTOM_Y_COORD:
+                    if copy_ball.y_velocity > 0:
+                        copy_ball.y_velocity = -copy_ball.y_velocity
+                else:
+                    if copy_ball.x < GROUND_HALF_WIDTH:
+                        copy_ball.x_velocity = -abs(copy_ball.x_velocity)
+                    else:
+                        copy_ball.x_velocity = abs(copy_ball.x_velocity)
+            
+            copy_ball.y = copy_ball.y + copy_ball.y_velocity
+
+            if copy_ball.y > BALL_TOUCHING_GROUND_Y_COORD or loopCounter >= 1000:
+                break
+
+            copy_ball.x = copy_ball.x + copy_ball.x_velocity
+            copy_ball.y_velocity += 1
+
+        ball.expected_landing_point_x = copy_ball.x
 
     def close(self) -> None:
         self.viewer.close()
@@ -342,3 +486,11 @@ class Ball:
         self.punch_effect_radius = 0
         self.is_power_hit = False
 
+class CopyBall:
+    __slots__ = ['x', 'y', 'x_velocity', 'y_velocity']
+
+    def __init__(self, x, y, x_velocity, y_velocity) -> None:
+        self.x = x
+        self.y = y
+        self.x_velocity = x_velocity
+        self.y_velocity = y_velocity
