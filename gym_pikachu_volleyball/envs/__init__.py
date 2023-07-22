@@ -1,2 +1,3 @@
 from gym_pikachu_volleyball.envs.pikachu_volleyball import PikachuVolleyballEnv
 from gym_pikachu_volleyball.envs.pikachu_volleyball import PikachuVolleyballPixelEnv
+from gym_pikachu_volleyball.envs.pikachu_volleyball import PikachuVolleyballRandomEnv

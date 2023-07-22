@@ -11,6 +11,7 @@ from gym_pikachu_volleyball.envs.constants import GROUND_HALF_WIDTH
 class PikachuVolleyballEnv(gym.Env):
 
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 25}
+    more_random = False
     pixel_mode = False
     is_player2_serve = False
 
@@ -30,7 +31,7 @@ class PikachuVolleyballEnv(gym.Env):
             high = np.array([np.finfo(np.float32).max] * 10)
             self.observation_space = spaces.Box(-high, high)
 
-        self.engine = Engine(is_player1_computer, is_player2_computer)
+        self.engine = Engine(is_player1_computer, is_player2_computer, self.more_random)
         self.engine.create_viewer(render_mode)
 
         self.render_mode = render_mode
@@ -83,3 +84,6 @@ class PikachuVolleyballEnv(gym.Env):
 
 class PikachuVolleyballPixelEnv(PikachuVolleyballEnv):
     pixel_mode = True
+
+class PikachuVolleyballRandomEnv(PikachuVolleyballEnv):   
+    more_random = True 

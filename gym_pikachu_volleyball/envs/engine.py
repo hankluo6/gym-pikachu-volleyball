@@ -8,14 +8,15 @@ from gym_pikachu_volleyball.envs.constants import *
 from gym_pikachu_volleyball.envs.common import UserInput
 
 class Engine:
-    __slots__ = ['players', 'ball', 'viewer']
+    __slots__ = ['players', 'ball', 'viewer', 'more_random']
 
-    def __init__(self, is_player1_computer: bool, is_player2_computer: bool) -> None:
+    def __init__(self, is_player1_computer: bool, is_player2_computer: bool, more_random: bool) -> None:
         self.players = (
                 Player(False, is_player1_computer), 
                 Player(True, is_player2_computer))
 
         self.ball = Ball(False)
+        self.more_random = more_random
         
     def step(self, user_inputs: Tuple[UserInput, UserInput]) -> bool:
         is_ball_touching_ground =\
@@ -40,7 +41,7 @@ class Engine:
     def reset(self, is_player2_serve: bool) -> None:
         self.players[0].reset()
         self.players[1].reset()
-        self.ball.reset(is_player2_serve)
+        self.ball.reset(is_player2_serve, self.more_random)
 
     def seed(self, seed: int) -> None:
         random.seed(seed)
@@ -462,7 +463,7 @@ class Ball:
             'punch_effect_radius', 'is_power_hit']
     
     def __init__(self, is_player2_serve: bool) -> None:
-        self.reset(is_player2_serve)
+        self.reset(is_player2_serve, False)
 
         self.expected_landing_point_x = 0
 
@@ -476,12 +477,18 @@ class Ball:
         self.previous_y = 0
         self.previous_previous_y = 0
 
-    def reset(self, is_player2_serve: bool) -> None:
+    def reset(self, is_player2_serve: bool, more_random: bool) -> None:
         self.x = 56 if not is_player2_serve else GROUND_WIDTH - 56
         self.y = 0
 
         self.x_velocity = 0
-        self.y_velocity = 1
+        # add randomness
+        if more_random:
+            self.x = GROUND_HALF_WIDTH
+            self.x_velocity = np.random.randint(low=-20, high=20)
+            self.y_velocity = np.random.randint(low=-10, high=0)
+        else:
+            self.y_velocity = 1
 
         self.punch_effect_radius = 0
         self.is_power_hit = False
