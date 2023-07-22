@@ -14,7 +14,7 @@ class PikachuVolleyballEnv(gym.Env):
     pixel_mode = False
     is_player2_serve = False
 
-    def __init__(self, is_player1_computer: bool, is_player2_computer: bool, render_mode: str):
+    def __init__(self, is_player1_computer: bool, is_player2_computer: bool, render_mode: str, limited_timestep: int):
         super(PikachuVolleyballEnv, self).__init__()
 
         self.action_space = spaces.Discrete(18)
@@ -34,6 +34,9 @@ class PikachuVolleyballEnv(gym.Env):
         self.engine.create_viewer(render_mode)
 
         self.render_mode = render_mode
+
+        self.timestep = 0
+        self.limited_timestep = limited_timestep
    
     def render(self):
         return self.engine.render(self.render_mode)
@@ -45,6 +48,7 @@ class PikachuVolleyballEnv(gym.Env):
         else:
             converted_action = (convert_to_user_input(other_action, 0), convert_to_user_input(action, 1))
         
+        self.timestep += 1
         is_ball_touching_ground = self.engine.step(converted_action)
         self.engine.viewer.update()
         obs = self.engine.get_obs(self.pixel_mode)
@@ -52,8 +56,8 @@ class PikachuVolleyballEnv(gym.Env):
         info = {
             'other_obs': other_obs
         }
-        if is_ball_touching_ground:
-            reward = -1 if self.engine.ball.punch_effect_x > GROUND_HALF_WIDTH else 1
+        if is_ball_touching_ground or self.timestep >= self.limited_timestep:
+            reward = -1 if self.timestep >= self.limited_timestep or self.engine.ball.punch_effect_x > GROUND_HALF_WIDTH else 1
             self.is_player2_serve = not (reward == -1)
             return obs, reward, True, True, info
         return obs, 0.0, False, False, info
@@ -71,6 +75,7 @@ class PikachuVolleyballEnv(gym.Env):
         info = {
             'other_obs': other_obs
         }
+        self.timestep = 0
         return (obs, info)
 
     def close(self) -> None:
