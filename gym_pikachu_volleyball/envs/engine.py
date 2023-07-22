@@ -1,5 +1,7 @@
 import random
 from typing import Tuple
+import numpy as np
+import cv2
 
 from gym_pikachu_volleyball.envs.viewer import Viewer
 from gym_pikachu_volleyball.envs.constants import *
@@ -226,6 +228,36 @@ class Engine:
             if player.delay_before_next_frame > 4:
                 player.delay_before_next_frame = 0
                 player.frame_number += 1
+
+    def get_obs(self, pixel_mode):
+        if pixel_mode:
+            return self.viewer.get_screen_rgb_array()
+        else:
+            ret = []
+            for player in self.players:
+                ret.append(player.x)
+                ret.append(player.y)
+                ret.append(player.y_velocity)
+            ret.append(self.ball.x)
+            ret.append(self.ball.y)
+            ret.append(self.ball.x_velocity)
+            ret.append(self.ball.y_velocity)
+            return np.array(ret, dtype=np.float32)
+    
+    def get_other_obs(self, pixel_mode):
+        if pixel_mode:
+            return cv2.flip(self.viewer.get_screen_rgb_array(), 1) # horizontal flip
+        else:
+            ret = []
+            for player in self.players[::-1]: 
+                ret.append(GROUND_WIDTH - player.x)
+                ret.append(player.y)
+                ret.append(player.y_velocity)
+            ret.append(GROUND_WIDTH - self.ball.x)
+            ret.append(self.ball.y)
+            ret.append(-self.ball.x_velocity)
+            ret.append(self.ball.y_velocity)
+            return np.array(ret, dtype=np.float32)
 
     def create_viewer(self, render_mode: str) -> None:
         self.viewer = Viewer(self)
