@@ -233,7 +233,10 @@ class Engine:
             self.viewer.init_screen()
 
     def render(self, mode: str) -> None:
-        self.viewer.render()
+        if mode == "human":
+            self.viewer.render()
+        else:
+            return self.viewer.get_screen_rgb_array() 
 
     def close(self) -> None:
         self.viewer.close()
